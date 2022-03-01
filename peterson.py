@@ -1,4 +1,4 @@
-from typing import Tuple
+from argparse import Action
 import model
 
 
@@ -91,12 +91,43 @@ class Model(model.Model):
             # create labels
             self.labels.add("proc %d in CS" % i)
 
-    def nextStates(self, src):
+    def nextStates(self, src: State):
         """
         Returns for each successor state of [src] a tuple consisting of the
          state object and the action used to get there.
         """
         for i in range(self.processes):
+            dst = src.clone()
+            # proc = dst.process[i]
+            # actions = self.actions
+
+            # for l in range(self.processes - 1):
+            #     dst.level[i] = l
+            #     dst.last[l] = i
+            #     while dst.last[l] == i and any(dst.level[k] >= l for k in range(self.processes) if k != i):
+            #         continue
+            # # begin critical section
+            # # end critical section
+
+            # dst.level[i] = -1
+            # yield dst, self.actions["cri"]
+
+            for l in range(self.processes - 1):
+                dst.level[i] = l
+                dst.last[l] = i
+                for k in range(self.processes):
+                    if k == i:
+                        continue
+                    while True:
+                        if dst.last[l] != i or dst.level[k] < l:
+                            break
+
+            # begin critical section
+            # end critical section
+
+            dst.level[i] = -1
+            yield dst, self.actions
+
             """
             0: for level[i] from 0 to (N - 1):
             1:     last[level[i]] := i;
@@ -106,8 +137,7 @@ class Model(model.Model):
             5: nop;
             6: level[i] := 0; goto 0;
             """
-            dst = src.clone()
-            proc = dst.process[i]
+            # actions = self.actions["action-name"]
 
             """
             TODO (Peterson lab): implement the body of the next-state function.
@@ -118,7 +148,7 @@ class Model(model.Model):
             `self.actions["action-name"]`.
             """
 
-        pass
+        return dst, None
 
 
 def main():
