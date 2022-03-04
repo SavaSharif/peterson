@@ -96,37 +96,41 @@ class Model(model.Model):
         Returns for each successor state of [src] a tuple consisting of the
          state object and the action used to get there.
         """
+        N = self.processes
         for i in range(self.processes):
             dst = src.clone()
-            # proc = dst.process[i]
-            # actions = self.actions
+            proc = dst.process[i]
 
-            # for l in range(self.processes - 1):
-            #     dst.level[i] = l
-            #     dst.last[l] = i
-            #     while dst.last[l] == i and any(dst.level[k] >= l for k in range(self.processes) if k != i):
-            #         continue
-            # # begin critical section
-            # # end critical section
-
-            # dst.level[i] = -1
-            # yield dst, self.actions["cri"]
-
-            for l in range(self.processes - 1):
-                dst.level[i] = l
-                dst.last[l] = i
-                for k in range(self.processes):
-                    if k == i:
-                        continue
-                    while True:
-                        if dst.last[l] != i or dst.level[k] < l:
-                            break
-
-            # begin critical section
-            # end critical section
-
-            dst.level[i] = -1
-            yield dst, self.actions
+            if dst.level[i] < N - 1:
+                if dst.last[dst.level[i]] != i:
+                    dst.last[dst.level[i]] = i
+                    yield (dst, self.actions["set-last(%d)" % i])
+                    continue
+                if proc.k < N:
+                    if proc.k == i:
+                        proc.k += 1
+                        yield (dst, self.actions["if-ki(%d)" % i])
+                        continue  # transition to k entry
+                    if dst.last[dst.level[i]] != i or dst.level[proc.k] < dst.level[i]:
+                        proc.k += 1
+                        yield (dst, self.actions["for-k(%d)" % i])
+                        continue  # transition to k entry
+                    yield (dst, self.actions["await(%d)" % i])
+                    continue  # transition to wait
+                else:
+                    proc.k = 0
+                    dst.level[i] += 1
+                    yield (dst, self.actions["for-level(%d)" % i])
+                    continue  # transition to init
+            else:
+                if dst.level[i] != -1:
+                    dst.level[i] = -1
+                    yield (dst, self.actions["enter-cs(%d)" % i])
+                    continue  # transition to critical
+                else:
+                    dst.level[i] = 0
+                    yield (dst, self.actions["exit-cs(%d)" % i])
+                    continue  # transition to init
 
             """
             0: for level[i] from 0 to (N - 1):
@@ -137,7 +141,6 @@ class Model(model.Model):
             5: nop;
             6: level[i] := 0; goto 0;
             """
-            # actions = self.actions["action-name"]
 
             """
             TODO (Peterson lab): implement the body of the next-state function.
@@ -148,7 +151,7 @@ class Model(model.Model):
             `self.actions["action-name"]`.
             """
 
-        return dst, None
+        return
 
 
 def main():
@@ -161,13 +164,19 @@ def main():
         if((count % 1000) == 0):
             print(count)
 
-        """
-        TODO (Peterson lab): implement a check for mutual exclusion.
-        """
+        count_crit = 0
+        if len(s.labels) > 0:
+            count_crit += 1
+        if count_crit > 1:
+            print("Mutual exclusion is not satisfied.")
 
-        """
-        TODO (Peterson lab): implement a check for deadlocks.
-        """
+        successors = mdl.nextStates(s)
+
+        try:
+            while next(successors):
+                pass
+        except StopIteration:
+            print("Deadlock found")
 
     print("%d reachable states" % count)
     pass
