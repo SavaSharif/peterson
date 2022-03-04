@@ -101,36 +101,56 @@ class Model(model.Model):
             dst = src.clone()
             proc = dst.process[i]
 
-            if dst.level[i] < N - 1:
-                if dst.last[dst.level[i]] != i:
-                    dst.last[dst.level[i]] = i
-                    yield (dst, self.actions["set-last(%d)" % i])
-                    continue
-                if proc.k < N:
-                    if proc.k == i:
-                        proc.k += 1
-                        yield (dst, self.actions["if-ki(%d)" % i])
-                        continue  # transition to k entry
-                    if dst.last[dst.level[i]] != i or dst.level[proc.k] < dst.level[i]:
-                        proc.k += 1
-                        yield (dst, self.actions["for-k(%d)" % i])
-                        continue  # transition to k entry
-                    yield (dst, self.actions["await(%d)" % i])
-                    continue  # transition to wait
-                else:
-                    proc.k = 0
-                    dst.level[i] += 1
+            if proc.pc == 0:
+                if dst.level[i] < N - 1:
+                    proc.pc = 1
                     yield (dst, self.actions["for-level(%d)" % i])
-                    continue  # transition to init
-            else:
-                if dst.level[i] != -1:
-                    dst.level[i] = -1
+                else:  # exit loop
+                    proc.pc = 10
                     yield (dst, self.actions["enter-cs(%d)" % i])
-                    continue  # transition to critical
-                else:
-                    dst.level[i] = 0
-                    yield (dst, self.actions["exit-cs(%d)" % i])
-                    continue  # transition to init
+
+            elif proc.pc == 1:
+                dst.last[dst.level[i]] = i
+                proc.pc = 2
+                yield (dst, self.actions["set-last(%d)" % i])
+
+            elif proc.pc == 2:
+                if proc.k < N:
+                    proc.pc = 3
+                    yield (dst, self.actions["for-k(%d)" % i])
+                else:  # exit loop
+                    proc.k = 0
+                    proc.pc = 8
+
+            elif proc.pc == 3:
+                if proc.k == i:
+                    proc.k += 1
+                    proc.pc = 2
+                    yield (dst, self.actions["if-ki(%d)" % i])
+                else:  # enter wait state
+                    proc.pc = 5
+                    yield (dst, self.actions["await(%d)" % i])
+
+            elif proc.pc == 5:
+                if dst.last[dst.level[i]] != i or dst.level[proc.k] < dst.level[i]:  # wait until
+                    proc.pc = 6
+
+            elif proc.pc == 6:
+                proc.k += 1
+                proc.pc = 2
+
+            elif proc.pc == 8:
+                dst.level[i] += 1
+                proc.pc = 0
+
+            elif proc.pc == 10:
+                pass  # critical state
+                proc.pc = 11
+                yield (dst, self.actions["exit-cs(%d)" % i])
+
+            elif proc.pc == 11:
+                dst.level[i] = 0
+                proc.pc = 0
 
             """
             0: for level[i] from 0 to (N - 1):
@@ -164,19 +184,19 @@ def main():
         if((count % 1000) == 0):
             print(count)
 
-        count_crit = 0
-        if len(s.labels) > 0:
-            count_crit += 1
-        if count_crit > 1:
-            print("Mutual exclusion is not satisfied.")
+        # count_crit = 0
+        # if len(s.labels) > 0:
+        #     count_crit += 1
+        # if count_crit > 1:
+        #     print("Mutual exclusion is not satisfied.")
 
-        successors = mdl.nextStates(s)
+        # successors = mdl.nextStates(s)
 
-        try:
-            while next(successors):
-                pass
-        except StopIteration:
-            print("Deadlock found")
+        # try:
+        #     while next(successors):
+        #         pass
+        # except StopIteration:
+        #     print("Deadlock found")
 
     print("%d reachable states" % count)
     pass
