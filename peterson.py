@@ -167,14 +167,20 @@ class Model(model.Model):
             """
 
             """
-            TODO (Peterson lab): implement the body of the next-state function.
-            `dst` is a copy of the state vector; modify it and yield a
-            tuple(dst, action).
-
-            The Action objects can be retrieved using
-            `self.actions["action-name"]`.
+            Flattened version of pseudocode above, used for logic of program
+            0:  if level[i] < N - 1:
+            1:      last[level[i]] := i;
+            2:      if k < N:
+            3:         if k==i: 
+            4:              k++; goto 2; 
+            5:         await last[level[i]]!=i or level[k] < level[i];
+            6:         k++;
+            7:         goto 2;
+            8:      level[i]++;
+            9:      goto 0;
+            10:  nop;
+            11:  level[i] := 0; goto 0;
             """
-
         return
 
 
