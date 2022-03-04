@@ -135,7 +135,7 @@ class Model(model.Model):
             elif proc.pc == 5:
                 if dst.last[dst.level[i]] != i or dst.level[proc.k] < dst.level[i]:  # wait until
                     proc.pc = 6
-                    yield (dst, self.actions["await(%d)" % i])
+                yield (dst, self.actions["await(%d)" % i])
 
             elif proc.pc == 6:
                 proc.k += 1
@@ -147,11 +147,12 @@ class Model(model.Model):
                 proc.pc = 0
                 yield (dst, self.actions["for-level(%d)" % i])
 
-            elif proc.pc == 10:  # critical section
+            elif proc.pc == 10:
                 proc.pc = 11
                 yield (dst, self.actions["enter-cs(%d)" % i])
 
             elif proc.pc == 11:
+                # critical section
                 dst.level[i] = 0
                 proc.pc = 0
                 yield (dst, self.actions["exit-cs(%d)" % i])
@@ -189,25 +190,27 @@ def main():
     mdl = Model(3)
 
     count = 0
+    mutual = True
+    deadlocks = 0
     for s in mdl.reach():
         count += 1
         if((count % 1000) == 0):
             print(count)
 
-        count_crit = 0
-        if len(s.labels) > 0:
-            count_crit += 1
-        if count_crit > 1:
-            print("Mutual exclusion is not satisfied.")
+        if len(s.labels) > 1:
+            mutual = False
 
         successors = mdl.nextStates(s)
 
         try:
             next(successors)
         except StopIteration:
-            print("Deadlock found")
+            deadlocks += 1
 
     print("%d reachable states" % count)
+    if not mutual:
+        print("Mutual exclusion is not satisfied.")
+    print("%d deadlocks" % deadlocks)
     pass
 
 
